@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Storybook</title>
+    <style>
+        :root {
+            --bg: #faf8f5;
+            --sidebar-bg: #f0ebe3;
+            --accent: #8b4513;
+            --accent-light: #d4956a;
+            --text: #2c1810;
+            --text-muted: #7a6355;
+            --border: #d4c4b0;
+            --tag-person: #e8f4e8;
+            --tag-person-text: #2d6a2d;
+            --tag-event: #e8eef4;
+            --tag-event-text: #2d4a6a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #topbar {
+            background: var(--accent);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        #topbar h1 { font-size: 1.4rem; letter-spacing: 0.5px; }
+
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: opacity 0.15s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: white; color: var(--accent); font-weight: bold; }
+        .btn-outline { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.6); }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-cancel { background: var(--sidebar-bg); color: var(--text); }
+        .btn-danger { background: #c0392b; color: white; }
+
+        #app { display: flex; flex: 1; overflow: hidden; }
+
+        /* Sidebar */
+        #sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        #search-box { padding: 12px; border-bottom: 1px solid var(--border); }
+        #search-box input {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: white;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        #search-box input:focus { outline: none; border-color: var(--accent-light); }
+
+        #filters { padding: 12px; border-bottom: 1px solid var(--border); }
+        #filters h3 {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 7px;
+        }
+        #filters h3:not(:first-child) { margin-top: 10px; }
+
+        .filter-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+        .filter-tag {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            transition: all 0.15s;
+        }
+        .filter-tag.person { background: var(--tag-person); color: var(--tag-person-text); }
+        .filter-tag.event  { background: var(--tag-event);  color: var(--tag-event-text);  }
+        .filter-tag.active { border-color: currentColor; font-weight: bold; }
+
+        #no-filters { font-size: 0.82rem; color: var(--text-muted); padding: 2px 0 4px; }
+
+        #story-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .story-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        .story-item:hover { background: rgba(139,69,19,0.08); }
+        .story-item.active { background: white; border-color: var(--border); }
+        .story-item-title {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--text);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .story-item-meta { font-size: 0.78rem; color: var(--text-muted); }
+
+        /* Main */
+        #main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+        #empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            gap: 12px;
+            text-align: center;
+            padding: 40px;
+        }
+        #empty-state .icon { font-size: 3rem; }
+        #empty-state strong { color: var(--text); }
+
+        /* Editor */
+        #editor-panel {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            padding: 24px 32px;
+            overflow-y: auto;
+            gap: 0;
+        }
+        #editor-panel.active { display: flex; }
+
+        .editor-toolbar { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+
+        .field-group { margin-bottom: 16px; }
+        .field-label {
+            display: block;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+        .field-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 1rem;
+            color: var(--text);
+            background: white;
+        }
+        .field-input:focus { outline: none; border-color: var(--accent-light); }
+        .field-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+        #story-content { min-height: 260px; resize: vertical; line-height: 1.8; font-size: 1.05rem; }
+
+        .tags-input-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding: 5px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: white;
+            align-items: center;
+            cursor: text;
+            min-height: 38px;
+        }
+        .tags-input-wrapper:focus-within { border-color: var(--accent-light); }
+
+        .tag-chip {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .tag-chip.person { background: var(--tag-person); color: var(--tag-person-text); }
+        .tag-chip.event  { background: var(--tag-event);  color: var(--tag-event-text);  }
+        .tag-chip .remove-tag { cursor: pointer; opacity: 0.55; line-height: 1; }
+        .tag-chip .remove-tag:hover { opacity: 1; }
+
+        .tags-input-field {
+            border: none;
+            outline: none;
+            font-family: inherit;
+            font-size: 0.9rem;
+            flex: 1;
+            min-width: 80px;
+            background: transparent;
+            color: var(--text);
+        }
+
+        /* Viewer */
+        #viewer-panel {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            padding: 32px 48px;
+            overflow-y: auto;
+        }
+        #viewer-panel.active { display: flex; }
+
+        .viewer-toolbar { display: flex; gap: 8px; margin-bottom: 24px; }
+        .viewer-title { font-size: 1.8rem; color: var(--accent); margin-bottom: 8px; line-height: 1.3; }
+        .viewer-date { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 14px; }
+        .viewer-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+        .viewer-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 24px; }
+        .viewer-content { font-size: 1.1rem; line-height: 1.9; white-space: pre-wrap; color: var(--text); }
+
+        /* Modal */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-backdrop.active { display: flex; }
+        .modal { background: white; border-radius: 8px; padding: 28px; width: 380px; max-width: 90vw; }
+        .modal h2 { margin-bottom: 10px; color: var(--accent); }
+        .modal p  { color: var(--text-muted); margin-bottom: 22px; }
+        .modal-buttons { display: flex; gap: 8px; justify-content: flex-end; }
+
+        #save-indicator { font-size: 0.83rem; color: var(--text-muted); margin-left: 8px; }
+
+        /* Print */
+        #printable { display: none; }
+
+        @media print {
+            body > *:not(#printable) { display: none !important; }
+            #printable {
+                display: block !important;
+                font-family: Georgia, serif;
+            }
+            .print-cover {
+                text-align: center;
+                padding: 120px 60px;
+                page-break-after: always;
+            }
+            .print-cover h1 { font-size: 3rem; color: #8b4513; margin-bottom: 16px; }
+            .print-cover .subtitle { font-size: 1.1rem; color: #7a6355; }
+            .print-story {
+                padding: 60px;
+                page-break-after: always;
+            }
+            .print-story h2 { font-size: 1.8rem; color: #8b4513; margin-bottom: 6px; }
+            .print-story .print-date { color: #7a6355; font-size: 0.9rem; margin-bottom: 6px; }
+            .print-story .print-tags { color: #7a6355; font-size: 0.88rem; margin-bottom: 20px; }
+            .print-story hr { border: none; border-top: 1px solid #d4c4b0; margin-bottom: 24px; }
+            .print-story .print-body { font-size: 1.05rem; line-height: 2; white-space: pre-wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="topbar">
+    <h1>&#128218; Family Storybook</h1>
+    <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="printBook()">&#128424; Print Book</button>
+        <button class="btn btn-primary" onclick="newStory()">+ New Story</button>
+    </div>
+</div>
+
+<div id="app">
+    <div id="sidebar">
+        <div id="search-box">
+            <input type="text" id="search-input" placeholder="Search stories&#8230;" oninput="renderStoryList()">
+        </div>
+        <div id="filters">
+            <h3>People</h3>
+            <div class="filter-tags" id="people-filters"><span id="no-people-filter" class="field-hint">None yet</span></div>
+            <h3>Events</h3>
+            <div class="filter-tags" id="event-filters"><span id="no-event-filter" class="field-hint">None yet</span></div>
+        </div>
+        <div id="story-list"></div>
+    </div>
+
+    <div id="main">
+        <div id="empty-state">
+            <div class="icon">&#128218;</div>
+            <div style="font-size:1.15rem;"><strong>Your family stories live here</strong></div>
+            <div>Click <strong>+ New Story</strong> to start writing</div>
+        </div>
+
+        <div id="editor-panel">
+            <div class="editor-toolbar">
+                <button class="btn btn-accent" onclick="saveStory()">Save Story</button>
+                <button class="btn btn-cancel" onclick="cancelEdit()">Cancel</button>
+                <span id="save-indicator"></span>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label" for="story-title">Title</label>
+                <input type="text" id="story-title" class="field-input" placeholder="Give your story a title&#8230;">
+            </div>
+
+            <div class="field-group">
+                <label class="field-label" for="story-date">Date</label>
+                <input type="text" id="story-date" class="field-input" placeholder="e.g. Summer 1987, Christmas 2001, June 15 1965">
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">People</label>
+                <div class="tags-input-wrapper" id="people-tags-wrapper" onclick="document.getElementById('people-input').focus()">
+                    <input type="text" class="tags-input-field" id="people-input"
+                           placeholder="Type a name, press Enter&#8230;"
+                           onkeydown="handleTagInput(event,'people')">
+                </div>
+                <div class="field-hint">Press Enter or comma to add each person</div>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Events</label>
+                <div class="tags-input-wrapper" id="events-tags-wrapper" onclick="document.getElementById('events-input').focus()">
+                    <input type="text" class="tags-input-field" id="events-input"
+                           placeholder="Type an event, press Enter&#8230;"
+                           onkeydown="handleTagInput(event,'events')">
+                </div>
+                <div class="field-hint">Press Enter or comma to add each event (e.g. &ldquo;Summer Vacation 1988&rdquo;)</div>
+            </div>
+
+            <div class="field-group" style="flex:1;">
+                <label class="field-label" for="story-content">Story</label>
+                <textarea id="story-content" class="field-input" placeholder="Write your story here&#8230;"></textarea>
+            </div>
+        </div>
+
+        <div id="viewer-panel">
+            <div class="viewer-toolbar">
+                <button class="btn btn-accent" onclick="editCurrentStory()">Edit</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+            <h2 class="viewer-title" id="view-title"></h2>
+            <div class="viewer-date" id="view-date"></div>
+            <div class="viewer-tags" id="view-tags"></div>
+            <hr class="viewer-divider">
+            <div class="viewer-content" id="view-content"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="delete-modal">
+    <div class="modal">
+        <h2>Delete this story?</h2>
+        <p>This cannot be undone.</p>
+        <div class="modal-buttons">
+            <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="deleteStory()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<div id="printable"></div>
+
+<script>
+    // ── State ──────────────────────────────────────────────────────────────────
+
+    let stories    = JSON.parse(localStorage.getItem('family-storybook') || '[]');
+    let currentId  = null;
+    let editingId  = null;
+    let editPeople = [];
+    let editEvents = [];
+    let activePeopleFilters = new Set();
+    let activeEventFilters  = new Set();
+
+    function persist() {
+        localStorage.setItem('family-storybook', JSON.stringify(stories));
+    }
+
+    function uid() {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    // ── Derived ────────────────────────────────────────────────────────────────
+
+    function allPeople() {
+        const s = new Set();
+        stories.forEach(x => x.people.forEach(p => s.add(p)));
+        return [...s].sort((a, b) => a.localeCompare(b));
+    }
+
+    function allEvents() {
+        const s = new Set();
+        stories.forEach(x => x.events.forEach(e => s.add(e)));
+        return [...s].sort((a, b) => a.localeCompare(b));
+    }
+
+    function filteredStories() {
+        const q = document.getElementById('search-input').value.toLowerCase();
+        return stories.filter(s => {
+            if (activePeopleFilters.size && !s.people.some(p => activePeopleFilters.has(p))) return false;
+            if (activeEventFilters.size  && !s.events.some(e => activeEventFilters.has(e)))  return false;
+            if (q && !s.title.toLowerCase().includes(q) && !s.content.toLowerCase().includes(q)) return false;
+            return true;
+        });
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+
+    function render() {
+        renderFilters();
+        renderStoryList();
+    }
+
+    function renderFilters() {
+        const people = allPeople();
+        const events = allEvents();
+
+        document.getElementById('people-filters').innerHTML = people.length
+            ? people.map(p =>
+                `<span class="filter-tag person ${activePeopleFilters.has(p) ? 'active' : ''}"
+                       onclick="toggleFilter('people','${esc(p)}')">${esc(p)}</span>`
+              ).join('')
+            : '<span class="field-hint">None yet</span>';
+
+        document.getElementById('event-filters').innerHTML = events.length
+            ? events.map(e =>
+                `<span class="filter-tag event ${activeEventFilters.has(e) ? 'active' : ''}"
+                       onclick="toggleFilter('events','${esc(e)}')">${esc(e)}</span>`
+              ).join('')
+            : '<span class="field-hint">None yet</span>';
+    }
+
+    function renderStoryList() {
+        const list  = document.getElementById('story-list');
+        const items = filteredStories();
+
+        if (!items.length) {
+            list.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:0.88rem;">No stories found</div>';
+            return;
+        }
+
+        list.innerHTML = items.map(s => {
+            const meta = [s.date, s.people.slice(0, 2).join(', ')].filter(Boolean).join(' · ');
+            return `<div class="story-item ${s.id === currentId ? 'active' : ''}" onclick="viewStory('${s.id}')">
+                <div class="story-item-title">${esc(s.title || 'Untitled')}</div>
+                ${meta ? `<div class="story-item-meta">${esc(meta)}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    function renderTagChips(type) {
+        const tags    = type === 'people' ? editPeople : editEvents;
+        const cls     = type === 'people' ? 'person' : 'event';
+        const inputId = type === 'people' ? 'people-input' : 'events-input';
+        const wrapper = document.getElementById(type + '-tags-wrapper');
+        const input   = document.getElementById(inputId);
+
+        wrapper.querySelectorAll('.tag-chip').forEach(el => el.remove());
+
+        tags.forEach((tag, i) => {
+            const chip = document.createElement('span');
+            chip.className = `tag-chip ${cls}`;
+            chip.innerHTML = `${esc(tag)} <span class="remove-tag" onclick="removeTag('${type}',${i})">&#215;</span>`;
+            wrapper.insertBefore(chip, input);
+        });
+    }
+
+    // ── Filters ────────────────────────────────────────────────────────────────
+
+    function toggleFilter(type, value) {
+        const set = type === 'people' ? activePeopleFilters : activeEventFilters;
+        set.has(value) ? set.delete(value) : set.add(value);
+        render();
+    }
+
+    // ── Story actions ──────────────────────────────────────────────────────────
+
+    function newStory() {
+        editingId  = null;
+        editPeople = [];
+        editEvents = [];
+        document.getElementById('story-title').value   = '';
+        document.getElementById('story-date').value    = '';
+        document.getElementById('story-content').value = '';
+        renderTagChips('people');
+        renderTagChips('events');
+        showPanel('editor');
+        document.getElementById('story-title').focus();
+    }
+
+    function editCurrentStory() {
+        const s = stories.find(x => x.id === currentId);
+        if (!s) return;
+        editingId  = s.id;
+        editPeople = [...s.people];
+        editEvents = [...s.events];
+        document.getElementById('story-title').value   = s.title;
+        document.getElementById('story-date').value    = s.date;
+        document.getElementById('story-content').value = s.content;
+        renderTagChips('people');
+        renderTagChips('events');
+        showPanel('editor');
+        document.getElementById('story-title').focus();
+    }
+
+    function saveStory() {
+        const title   = document.getElementById('story-title').value.trim();
+        const date    = document.getElementById('story-date').value.trim();
+        const content = document.getElementById('story-content').value.trim();
+
+        if (!title && !content) return;
+
+        if (editingId) {
+            const s = stories.find(x => x.id === editingId);
+            if (s) {
+                Object.assign(s, { title, date, content, people: [...editPeople], events: [...editEvents], updatedAt: Date.now() });
+            }
+            currentId = editingId;
+        } else {
+            const s = { id: uid(), title, date, content, people: [...editPeople], events: [...editEvents], createdAt: Date.now(), updatedAt: Date.now() };
+            stories.unshift(s);
+            currentId = s.id;
+        }
+
+        editingId = null;
+        persist();
+        render();
+        viewStory(currentId);
+
+        const ind = document.getElementById('save-indicator');
+        ind.textContent = 'Saved!';
+        setTimeout(() => ind.textContent = '', 2000);
+    }
+
+    function cancelEdit() {
+        editingId = null;
+        currentId ? viewStory(currentId) : showPanel('empty');
+    }
+
+    function viewStory(id) {
+        const s = stories.find(x => x.id === id);
+        if (!s) return;
+        currentId = id;
+
+        document.getElementById('view-title').textContent   = s.title || 'Untitled';
+        document.getElementById('view-date').textContent    = s.date  || '';
+        document.getElementById('view-content').textContent = s.content;
+        document.getElementById('view-tags').innerHTML = [
+            ...s.people.map(p => `<span class="tag-chip person">${esc(p)}</span>`),
+            ...s.events.map(e => `<span class="tag-chip event">${esc(e)}</span>`)
+        ].join('');
+
+        renderStoryList();
+        showPanel('viewer');
+    }
+
+    function confirmDelete() {
+        document.getElementById('delete-modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('delete-modal').classList.remove('active');
+    }
+
+    function deleteStory() {
+        stories   = stories.filter(s => s.id !== currentId);
+        currentId = null;
+        closeModal();
+        persist();
+        render();
+        showPanel('empty');
+    }
+
+    // ── Tag input ──────────────────────────────────────────────────────────────
+
+    function handleTagInput(e, type) {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = e.target.value.trim().replace(/,$/, '');
+            if (!val) return;
+            (type === 'people' ? editPeople : editEvents).push(val);
+            e.target.value = '';
+            renderTagChips(type);
+        } else if (e.key === 'Backspace' && e.target.value === '') {
+            const arr = type === 'people' ? editPeople : editEvents;
+            if (arr.length) { arr.pop(); renderTagChips(type); }
+        }
+    }
+
+    function removeTag(type, index) {
+        (type === 'people' ? editPeople : editEvents).splice(index, 1);
+        renderTagChips(type);
+    }
+
+    // ── Print ──────────────────────────────────────────────────────────────────
+
+    function printBook() {
+        const toprint = filteredStories();
+        if (!toprint.length) { alert('No stories to print.'); return; }
+
+        document.getElementById('printable').innerHTML =
+            `<div class="print-cover">
+                <h1>Our Family Stories</h1>
+                <div class="subtitle">${new Date().getFullYear()}</div>
+            </div>` +
+            toprint.map(s => {
+                const tags = [...s.people, ...s.events].join(' · ');
+                return `<div class="print-story">
+                    <h2>${esc(s.title || 'Untitled')}</h2>
+                    ${s.date ? `<div class="print-date">${esc(s.date)}</div>` : ''}
+                    ${tags    ? `<div class="print-tags">${esc(tags)}</div>`   : ''}
+                    <hr>
+                    <div class="print-body">${esc(s.content)}</div>
+                </div>`;
+            }).join('');
+
+        window.print();
+    }
+
+    // ── Utilities ──────────────────────────────────────────────────────────────
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function showPanel(name) {
+        document.getElementById('empty-state').style.display  = name === 'empty'  ? 'flex' : 'none';
+        document.getElementById('editor-panel').classList.toggle('active', name === 'editor');
+        document.getElementById('viewer-panel').classList.toggle('active', name === 'viewer');
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+
+    render();
+    if (stories.length) viewStory(stories[0].id);
+</script>
+</body>
+</html>
